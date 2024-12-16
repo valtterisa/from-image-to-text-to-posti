@@ -40,11 +40,7 @@ export default function Results() {
         });
     };
 
-    if (isLoading) {
-        return <LoadingSpinner />;
-    }
-
-    if (results.length === 0) {
+    if (results.length === 0 && !isLoading) {
         return <div>No results found</div>;
     }
 
