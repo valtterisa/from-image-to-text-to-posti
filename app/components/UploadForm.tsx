@@ -1,19 +1,77 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import { useDropzone } from 'react-dropzone';
+import { Camera, Upload, X, ImageIcon, Trash2 } from 'lucide-react';
+import Image from 'next/image';
+import Separator from './Separator';
 
-export default function UploadForm() {
-    const [files, setFiles] = useState<File[]>([]);
+interface FileWithPreview {
+    file: File;
+    preview: string;
+    base64: string;
+}
+
+export default function FileUpload() {
+    const [files, setFiles] = useState<FileWithPreview[]>([]);
+    const [uploading, setUploading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
     const router = useRouter();
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files) {
-            setFiles(Array.from(e.target.files));
+    // Load files from localStorage on mount
+    useEffect(() => {
+        const storedFiles = localStorage.getItem('files');
+        if (storedFiles) {
+            try {
+                const parsedFiles = JSON.parse(storedFiles);
+                if (Array.isArray(parsedFiles)) {
+                    setFiles(
+                        parsedFiles.map((item: { name: string; base64: string }) => ({
+                            file: new File([], item.name), // Placeholders for reconstructed files
+                            preview: '',
+                            base64: item.base64,
+                        }))
+                    );
+                }
+            } catch (error) {
+                console.error('Error parsing files from localStorage', error);
+            }
         }
+    }, []);
+
+    // Save files to localStorage on update
+    useEffect(() => {
+        if (files.length > 0) {
+            const filesToSave = files.map(({ file, base64 }) => ({
+                name: file.name,
+                base64,
+            }));
+            localStorage.setItem('files', JSON.stringify(filesToSave));
+        }
+    }, [files]);
+
+    const onDrop = useCallback((acceptedFiles: File[]) => {
+        const filePromises = acceptedFiles.map(async (file) => {
+            const base64 = await fileToBase64(file);
+            return { file, preview: URL.createObjectURL(file), base64 };
+        });
+
+        Promise.all(filePromises).then((newFiles) => {
+            setFiles((prevFiles) => [...prevFiles, ...newFiles]);
+        });
+    }, []);
+
+    const { getRootProps, getInputProps, isDragActive } = useDropzone({
+        onDrop,
+        accept: {
+            'image/*': ['.jpeg', '.jpg', '.png'],
+        },
+    });
+
+    const removeFile = (fileToRemove: FileWithPreview) => {
+        setFiles((prevFiles) => prevFiles.filter(({ file }) => file !== fileToRemove.file));
     };
 
     const handleUpload = async () => {
@@ -22,24 +80,20 @@ export default function UploadForm() {
             return;
         }
         setError(null);
-        setIsLoading(true);
+        setUploading(true);
 
         try {
-            const imageData = await Promise.all(
-                files.map(async (file) => {
-                    const base64 = await fileToBase64(file);
-                    return { filename: file.name, base64 };
-                })
-            );
-
-            // Save to localStorage
+            const imageData = files.map(({ file, base64 }) => ({
+                filename: file.name,
+                base64,
+            }));
             localStorage.setItem('imageData', JSON.stringify(imageData));
-
-            setIsLoading(false);
+            setUploading(false);
+            setFiles([]);
             toast.success('Images uploaded successfully!');
-            router.push('/results'); // Redirect to results page
+            router.push('/results');
         } catch (err) {
-            setIsLoading(false);
+            setUploading(false);
             toast.error('Failed to upload images');
         }
     };
@@ -52,24 +106,80 @@ export default function UploadForm() {
             reader.readAsDataURL(file);
         });
 
+    const handleCamera = () => {
+        // Handle camera functionality here
+    };
+
     return (
-        <div className="max-w-md mx-auto p-6 bg-white rounded-lg shadow-lg">
-            <h1 className="text-xl font-semibold mb-4">Upload Your Images</h1>
-            <input
-                type="file"
-                multiple
-                accept="image/jpeg, image/png"
-                onChange={handleFileChange}
-                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100"
-            />
-            {error && <p className="text-red-500 mt-2">{error}</p>}
-            <button
-                onClick={handleUpload}
-                disabled={isLoading}
-                className="mt-4 w-full py-2 px-4 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
-            >
-                {isLoading ? 'Uploading...' : 'Upload Files'}
-            </button>
+        <div className="max-w-2xl mx-auto p-4">
+            <div className="bg-white rounded-lg shadow-lg p-6">
+                <div className="flex items-center gap-2 mb-6">
+                    <ImageIcon className="w-6 h-6" />
+                    <h2 className="text-2xl font-semibold">Lataa kuvia</h2>
+                </div>
+
+                <div
+                    {...getRootProps()}
+                    className={`border-2 border-dashed rounded-lg p-8 transition-colors ${isDragActive
+                        ? 'border-black bg-gray-50'
+                        : 'border-gray-300 hover:border-gray-400'
+                        }`}
+                >
+                    <input {...getInputProps()} />
+                    <div className="text-center">
+                        <Upload className="mx-auto h-12 w-12 text-gray-400" />
+                        <p className="mt-2 text-sm text-gray-600">
+                            Vedä ja pudota tiedostot tähän tai valitse ne napsauttamalla.
+                        </p>
+                    </div>
+                </div>
+
+                {files.length > 0 && (
+                    <div className="mt-6 space-y-4">
+                        {files.map((file, index) => (
+                            <div
+                                key={index}
+                                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                            >
+                                <div className="flex items-center space-x-3">
+                                    <div className="h-16 w-16 relative rounded-md overflow-hidden bg-gray-100">
+                                        <img src={file.base64} alt={file.file.name} className="object-cover" />
+                                    </div>
+                                    <span className="text-sm font-medium">{file.file.name}</span>
+                                </div>
+                                <button
+                                    onClick={() => removeFile(file)}
+                                    className="p-2 hover:bg-gray-200 rounded-full transition-colors"
+                                >
+                                    <Trash2 className="w-5 h-5 text-gray-500" />
+                                    <span className="sr-only">Poista tiedosto</span>
+                                </button>
+                            </div>
+                        ))}
+
+                        <button
+                            onClick={handleUpload}
+                            disabled={uploading}
+                            className="w-full mt-4 bg-black text-white py-3 px-4 rounded-lg font-medium hover:bg-gray-800 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        >
+                            <Upload className="w-5 h-5" />
+                            Käsittele tiedostot
+                        </button>
+                    </div>
+                )}
+
+                {error && <p className="text-red-500 mt-4">{error}</p>}
+                <Separator text='tai' />
+                <div className="mt-6 flex justify-center">
+                    <button
+                        onClick={handleCamera}
+                        className="bg-white border-2 border-black text-black py-3 px-6 rounded-lg font-medium hover:bg-gray-50 transition-colors flex items-center gap-2"
+                    >
+                        <Camera className="w-5 h-5" />
+                        Käytä kameraa
+                    </button>
+                </div>
+            </div>
         </div>
     );
 }
