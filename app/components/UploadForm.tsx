@@ -143,8 +143,7 @@ export default function FileUpload() {
             );
 
             const croppedImage = canvas.toDataURL('image/png');
-            setFiles((prevFiles) => [
-                ...prevFiles,
+            setFiles(() => [
                 { file: null, preview: croppedImage, base64: croppedImage },
             ]);
             setImageToCrop(null);
@@ -200,6 +199,7 @@ export default function FileUpload() {
                             onCropChange={setCrop}
                             onZoomChange={setZoom}
                             onCropComplete={(_, croppedAreaPixels) => setCroppedAreaPixels(croppedAreaPixels)}
+                            showGrid={false}
                         />
                         <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-4">
                             <button
