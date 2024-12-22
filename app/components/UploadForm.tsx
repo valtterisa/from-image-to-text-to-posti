@@ -79,21 +79,25 @@ export default function FileUpload() {
         setError(null);
         setUploading(true);
 
+        // Navigate instantly to the '/results' page
+        router.push('/results');  // This changes the page immediately
+
         try {
+            // Simulate file upload
             const imageData = files.map(({ file, base64 }) => ({
                 filename: file?.name || 'captured_image.png',
                 base64,
             }));
-            localStorage.setItem('imageData', JSON.stringify(imageData));
+            localStorage.setItem('imageData', JSON.stringify(imageData));  // Storing data
             setUploading(false);
-            setFiles([]);
+            setFiles([]);  // Optionally clear the files after upload
             toast.success('Images uploaded successfully!');
-            router.push('/results');
         } catch (err) {
             setUploading(false);
             toast.error('Failed to upload images');
         }
     };
+
 
     const handleCamera = () => {
         navigator.mediaDevices
