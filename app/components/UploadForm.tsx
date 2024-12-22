@@ -33,6 +33,7 @@ export default function FileUpload() {
     const [crop, setCrop] = useState({ x: 0, y: 0 });
     const [zoom, setZoom] = useState(1);
     const router = useRouter();
+    const [cameraOpen, setCameraOpen] = useState(false);
 
     const fileToBase64 = (file: File): Promise<string> =>
         new Promise((resolve, reject) => {
@@ -96,6 +97,7 @@ export default function FileUpload() {
                 toast.error('Unable to access camera.');
                 console.error(err);
             });
+        setCameraOpen(true);
     };
 
     const captureImage = () => {
@@ -111,6 +113,7 @@ export default function FileUpload() {
                 setImageToCrop(image);
                 setCameraStream(null);
                 setIsCropping(true);
+                setCameraOpen(false);
             }
         }
     };
@@ -143,7 +146,8 @@ export default function FileUpload() {
             );
 
             const croppedImage = canvas.toDataURL('image/png');
-            setFiles(() => [
+            setFiles((prevFiles) => [
+                ...prevFiles,
                 { file: null, preview: croppedImage, base64: croppedImage },
             ]);
             setImageToCrop(null);
@@ -174,20 +178,7 @@ export default function FileUpload() {
                             }}
                             className="w-full rounded-lg"
                         />
-                        <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-4">
-                            <button
-                                onClick={captureImage}
-                                className="bg-black text-white py-2 px-4 rounded-lg"
-                            >
-                                Ota kuva
-                            </button>
-                            <button
-                                onClick={() => setCameraStream(null)}
-                                className="bg-white border-2 border-black py-2 px-4 rounded-lg"
-                            >
-                                Peruuta
-                            </button>
-                        </div>
+
                     </div>
                 ) : isCropping && imageToCrop ? (
                     <div className="relative w-full h-64">
@@ -201,23 +192,6 @@ export default function FileUpload() {
                             onCropComplete={(_, croppedAreaPixels) => setCroppedAreaPixels(croppedAreaPixels)}
                             showGrid={false}
                         />
-                        <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-4">
-                            <button
-                                onClick={cropImage}
-                                className="bg-black text-white py-2 px-4 rounded-lg"
-                            >
-                                Valmis
-                            </button>
-                            <button
-                                onClick={() => {
-                                    setImageToCrop(null);
-                                    setIsCropping(false);
-                                }}
-                                className="bg-white border-2 border-black py-2 px-4 rounded-lg"
-                            >
-                                Peruuta
-                            </button>
-                        </div>
                     </div>
                 ) : (
                     <>
@@ -289,6 +263,37 @@ export default function FileUpload() {
                     </>
                 )}
             </div>
+            {cameraOpen && !isCropping && <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-4">
+                <button
+                    onClick={captureImage}
+                    className="bg-black text-white py-2 px-4 rounded-lg"
+                >
+                    Ota kuva
+                </button>
+                <button
+                    onClick={() => { setCameraStream(null); setCameraOpen(false); }}
+                    className="bg-white border-2 border-black py-2 px-4 rounded-lg"
+                >
+                    Peruuta
+                </button>
+            </div>}
+            {isCropping && imageToCrop && <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-4">
+                <button
+                    onClick={cropImage}
+                    className="bg-black text-white py-2 px-4 rounded-lg"
+                >
+                    Valmis
+                </button>
+                <button
+                    onClick={() => {
+                        setImageToCrop(null);
+                        setIsCropping(false);
+                    }}
+                    className="bg-white border-2 border-black py-2 px-4 rounded-lg"
+                >
+                    Peruuta
+                </button>
+            </div>}
         </div>
     );
 }
