@@ -8,6 +8,7 @@ import { Camera, Upload, Trash2, Crop } from 'lucide-react';
 import Cropper from 'react-easy-crop';
 import Image from 'next/image';
 import Separator from './Separator';
+import LoadingScreen from './LoadingSpinner';
 
 interface FileWithPreview {
     file: File | null;
@@ -23,6 +24,7 @@ interface CroppedArea {
 }
 
 export default function FileUpload() {
+
     const [files, setFiles] = useState<FileWithPreview[]>([]);
     const [uploading, setUploading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -34,6 +36,10 @@ export default function FileUpload() {
     const [zoom, setZoom] = useState(1);
     const router = useRouter();
     const [cameraOpen, setCameraOpen] = useState(false);
+
+    if (uploading) {
+        return <LoadingScreen />
+    }
 
     const fileToBase64 = (file: File): Promise<string> =>
         new Promise((resolve, reject) => {
@@ -154,7 +160,6 @@ export default function FileUpload() {
             setIsCropping(false);
         }
     };
-
 
     return (
         <div className="max-w-2xl mx-auto p-4">

@@ -6,7 +6,6 @@ export default function ExtractPage() {
     return (
         <main className="flex flex-col items-center justify-center min-h-screen bg-background p-4">
             <Suspense fallback={<LoadingSpinner />}>
-                {/* <Suspense> */}
                 <Results />
             </Suspense>
         </main>
