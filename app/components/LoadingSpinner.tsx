@@ -1,10 +1,10 @@
-'use client'
+'use client';
 
-import { Loader2 } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { Loader2 } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 interface LoadingScreenProps {
-    message?: string
+    message?: string;
 }
 
 export default function LoadingScreen({ message = 'Käsitellään tiedostoja...' }: LoadingScreenProps) {
@@ -16,13 +16,13 @@ export default function LoadingScreen({ message = 'Käsitellään tiedostoja...'
                     animate={{ opacity: 1, y: 0 }}
                     className="text-center"
                 >
-                    <motion.div
+                    {/* <motion.div
                         animate={{ rotate: 360 }}
                         transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                         className="inline-block"
                     >
                         <Loader2 className="h-12 w-12 text-black" />
-                    </motion.div>
+                    </motion.div> */}
 
                     <motion.div
                         initial={{ opacity: 0, y: 5 }}
@@ -40,13 +40,16 @@ export default function LoadingScreen({ message = 'Käsitellään tiedostoja...'
                                     duration: 1.5,
                                     ease: "linear"
                                 }}
-                                className="w-1/3 h-full bg-black rounded-full"
+                                className="absolute w-full h-full bg-black rounded-full"
+                                style={{
+                                    transform: 'translateX(-100%)',
+                                    position: 'relative',
+                                }}
                             />
                         </div>
                     </motion.div>
                 </motion.div>
             </div>
         </div>
-    )
+    );
 }
-

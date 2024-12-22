@@ -18,10 +18,12 @@ import {
 import Link from 'next/link';
 import LoadingSpinner from './LoadingSpinner';
 
+type ExtractedDataType = Record<string, string>;
+
 export default function Results() {
     const [results, setResults] = useState<{ filename: string; text: string }[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [extractedData, setExtractedData] = useState<any[]>([]);
+    const [extractedData, setExtractedData] = useState<ExtractedDataType[]>([]);
     const [confirmedForms, setConfirmedForms] = useState<boolean[]>([]);
 
     useEffect(() => {
@@ -60,7 +62,7 @@ export default function Results() {
                     body: JSON.stringify(result),
                 });
                 const data = await response.json();
-                return data;
+                return data as ExtractedDataType; // Ensure the response matches the expected type
             });
 
             const extracted = await Promise.all(dataPromises);
@@ -147,11 +149,11 @@ export default function Results() {
                                             {key === 'email' && <Mail size={20} />}
                                             {key === 'zipcode' && <Mail size={20} />}
                                             {key === 'country' && <Globe size={20} />}
-                                            {key === "city" && <Building size={20} />}
+                                            {key === 'city' && <Building size={20} />}
                                         </div>
                                         <input
                                             name={key}
-                                            value={value || ''}
+                                            value={value || ''} // Explicitly cast to string
                                             onChange={(e) => handleInputChange(index, key, e.target.value)}
                                             className={`w-full pl-10 pr-3 py-2 border rounded-md focus:ring-2 focus:ring-black focus:border-transparent ${!value || value.trim() === '' ? 'border-red-500' : 'border-gray-300'
                                                 }`}
