@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Tesseract from 'tesseract.js';
 import { toast } from 'sonner';
+import { createClient } from '@supabase/supabase-js';
 import {
     User,
     MapPin,
@@ -14,14 +14,26 @@ import {
     AlertCircle,
     Edit2
 } from 'lucide-react';
-
 import Link from 'next/link';
 import LoadingSpinner from './LoadingSpinner';
 
-type ExtractedDataType = Record<string, string>;
+// Initialize Supabase client
+const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
+type ExtractedDataType = {
+    name: string;
+    mobile: string;
+    address1: string;
+    zipcode: string;
+    city: string;
+    country: string;
+};
 
 export default function Results() {
-    const [results, setResults] = useState<{ filename: string; text: string }[]>([]);
+    const [results, setResults] = useState<{ filename: string; base64: string }[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [extractedData, setExtractedData] = useState<ExtractedDataType[]>([]);
     const [confirmedForms, setConfirmedForms] = useState<boolean[]>([]);
@@ -34,57 +46,85 @@ export default function Results() {
         }
     }, []);
 
-    const processImages = (images: { filename: string; base64: string }[]) => {
-        const ocrResults: { filename: string; text: string }[] = [];
-        const ocrPromises = images.map((image) =>
-            Tesseract.recognize(image.base64, 'eng')
-                .then(({ data: { text } }) => {
-                    ocrResults.push({ filename: image.filename, text });
-                })
-                .catch((error) => {
-                    console.error('OCR failed:', error);
-                    toast.error('Error processing OCR');
-                    ocrResults.push({ filename: image.filename, text: 'OCR failed' });
-                })
-        );
+    const uploadToSupabase = async (base64Image: string, filename: string) => {
+        try {
+            // Convert base64 to blob
+            const base64Response = await fetch(base64Image);
+            const blob = await base64Response.blob();
 
-        Promise.all(ocrPromises).then(() => {
-            setResults(ocrResults);
-            extractDataFromText(ocrResults);
-        });
+            // Upload to Supabase
+            const fileName = `${Date.now()}-${filename.replace(/\s+/g, '-')}`;
+            const { error } = await supabase.storage
+                .from('images')
+                .upload(fileName, blob, {
+                    contentType: 'image/png',
+                    upsert: false
+                });
+
+            if (error) console.log('Error uploading to Supabase:', error);
+
+            // Get signed URL
+            const { data } = await supabase.storage
+                .from('images')
+                .createSignedUrl(fileName, 60);
+
+            if (data) {
+                return data.signedUrl
+            }
+        } catch (error) {
+            console.error('Error uploading to Supabase:', error);
+            throw error;
+        }
     };
 
-    const extractDataFromText = async (ocrResults: { filename: string; text: string }[]) => {
+    const processImages = async (images: { filename: string; base64: string }[]) => {
+        setResults(images);
         try {
-            const dataPromises = ocrResults.map(async (result) => {
-                const response = await fetch('api/openai', {
+            const dataPromises = images.map(async (image) => {
+                // First upload to Supabase
+                const imageUrl = await uploadToSupabase(image.base64, image.filename);
+
+
+                // Then send URL to Vision API
+                const response = await fetch('/api/vision', {
                     method: 'POST',
-                    body: JSON.stringify(result),
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ imageUrl }),
                 });
-                const data = await response.json();
-                return data as ExtractedDataType; // Ensure the response matches the expected type
+
+                if (!response.ok) {
+                    throw new Error(`Error processing image: ${image.filename}`);
+                }
+
+                const result = await response.json();
+                return result.data as ExtractedDataType;
             });
 
             const extracted = await Promise.all(dataPromises);
             setExtractedData(extracted);
             setConfirmedForms(Array(extracted.length).fill(false));
         } catch (error) {
-            console.error('Error extracting data:', error);
-            toast.error('Error extracting structured data');
+            console.error('Error processing images:', error);
+            toast.error('Error processing images');
         } finally {
             setIsLoading(false);
         }
     };
 
-    const handleInputChange = (index: number, field: string, value: string) => {
+    const handleInputChange = (index: number, field: keyof ExtractedDataType, value: string) => {
         const updatedData = [...extractedData];
-        updatedData[index][field] = value;
+        updatedData[index] = {
+            ...updatedData[index],
+            [field]: value
+        };
         setExtractedData(updatedData);
     };
 
     const validateForm = (index: number): boolean => {
-        const data = extractedData[index] || {};
-        return Object.values(data).every((value) => value && value.trim() !== '');
+        const data = extractedData[index];
+        return data ? Object.values(data).every((value) => value && value.trim() !== '') : false;
     };
 
     const handleConfirmForm = (index: number) => {
@@ -140,21 +180,20 @@ export default function Results() {
                         <>
                             <h3 className="text-lg font-semibold text-black">{result.filename}</h3>
                             <div className="mt-4 space-y-4">
-                                {Object.entries(extractedData[index] || {}).map(([key, value]) => (
+                                {extractedData[index] && Object.entries(extractedData[index]).map(([key, value]) => (
                                     <div key={key} className="relative">
                                         <div className="absolute left-3 top-3 text-gray-600">
                                             {key === 'name' && <User size={20} />}
                                             {key === 'address1' && <MapPin size={20} />}
                                             {key === 'mobile' && <Phone size={20} />}
-                                            {key === 'email' && <Mail size={20} />}
                                             {key === 'zipcode' && <Mail size={20} />}
                                             {key === 'country' && <Globe size={20} />}
                                             {key === 'city' && <Building size={20} />}
                                         </div>
                                         <input
                                             name={key}
-                                            value={value || ''} // Explicitly cast to string
-                                            onChange={(e) => handleInputChange(index, key, e.target.value)}
+                                            value={value}
+                                            onChange={(e) => handleInputChange(index, key as keyof ExtractedDataType, e.target.value)}
                                             className={`w-full pl-10 pr-3 py-2 border rounded-md focus:ring-2 focus:ring-black focus:border-transparent ${!value || value.trim() === '' ? 'border-red-500' : 'border-gray-300'
                                                 }`}
                                             placeholder={key.charAt(0).toUpperCase() + key.slice(1)}

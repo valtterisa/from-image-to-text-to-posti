@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 export async function POST(req: Request) {
   try {
     const { text, filename } = await req.json();
-    
+
     const client = new OpenAI({
       apiKey: process.env["OPENAI_API_KEY"]
     });
@@ -33,7 +33,7 @@ export async function POST(req: Request) {
       }`
     };
 
-    
+
     // add correct chat type
     const userPrompt: any = {
       role: 'user',
