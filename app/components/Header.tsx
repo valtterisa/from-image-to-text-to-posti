@@ -25,7 +25,14 @@ export function Header() {
                         <Link href="#" className="text-gray-600 hover:text-black">Asiakkaat</Link>
                         <Link href="/pricing" className="text-gray-600 hover:text-black">Hinnoittelu</Link>
                         <Link href="#" className="text-gray-600 hover:text-black">Opi</Link>
-
+                        <div className="space-x-4">
+                            <Link href="/login" className="w-full text-center border border-black rounded-md py-2 px-4 bg-black text-white hover:bg-white hover:text-black transition-colors duration-300 ease-in-out">
+                                Kirjaudu
+                            </Link>
+                            <Link href="/signup" className="w-full text-center">
+                                Rekisteröidy
+                            </Link>
+                        </div>
                     </nav>
 
                     {/* Mobile Menu Icon */}
